@@ -1,4 +1,4 @@
-//! Primitives de dessin sur image noir et blanc (sudoku, labyrinthe, mots mêlés).
+//! Primitives de dessin sur image noir et blanc (sudoku, labyrinthe, mots mêlés, voie ferrée…).
 
 use image::{GrayImage, Luma};
 
@@ -126,59 +126,5 @@ pub fn letter(img: &mut GrayImage, c: u8, x: i64, y: i64, scale: i64, ink: Luma<
                 fill_rect_with(img, x + col as i64 * scale, y + row as i64 * scale, scale, scale, ink);
             }
         }
-    }
-}
-
-/// Une rangée de QR codes (deux au maximum par ligne), chacun centré dans sa colonne.
-/// Les QR codes natifs de l'imprimante ne se placent pas côte à côte : on les dessine en raster.
-pub fn qr_row(data: &[&str]) -> anyhow::Result<GrayImage> {
-    anyhow::ensure!((1..=2).contains(&data.len()), "une rangée contient un ou deux QR codes");
-    let qr_error = |e| anyhow::anyhow!("QR code impossible : {e}");
-    let codes = data
-        .iter()
-        .map(|d| qrcode::QrCode::new(d.as_bytes()))
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(qr_error)?;
-    // Même version (donc même taille) pour tous les codes de la rangée.
-    let version = codes.iter().map(|c| c.version()).max_by_key(|v| v.width()).expect("au moins un code");
-    let codes = data
-        .iter()
-        .map(|d| qrcode::QrCode::with_version(d.as_bytes(), version, qrcode::EcLevel::M))
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(qr_error)?;
-
-    const QUIET: i64 = 4; // marge blanche réglementaire, en modules
-    let column = PRINT_WIDTH as i64 / codes.len() as i64;
-    let max_modules = codes.iter().map(|c| c.width() as i64 + 2 * QUIET).max().unwrap_or(1);
-    // Même taille de module pour tous, au plus 5 points, dans une colonne de 240 points max.
-    let scale = ((column.min(240)) / max_modules).clamp(1, 5);
-    let height = max_modules * scale;
-    let mut img = canvas(height as u32);
-
-    for (i, code) in codes.iter().enumerate() {
-        let width = code.width() as i64;
-        let size = (width + 2 * QUIET) * scale;
-        let x0 = i as i64 * column + (column - size) / 2 + QUIET * scale;
-        let y0 = (height - size) / 2 + QUIET * scale;
-        for (k, color) in code.to_colors().into_iter().enumerate() {
-            if color == qrcode::Color::Dark {
-                let (mx, my) = (k as i64 % width, k as i64 / width);
-                fill_rect(&mut img, x0 + mx * scale, y0 + my * scale, scale, scale);
-            }
-        }
-    }
-    Ok(img)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn qr_row_fits_paper_width() {
-        let img = qr_row(&["https://example.com/a", "https://example.com/un/lien/bien/plus/long?avec=parametres"]).unwrap();
-        assert_eq!(img.width(), PRINT_WIDTH);
-        assert!(img.height() <= 240);
-        assert!(qr_row(&[]).is_err());
     }
 }

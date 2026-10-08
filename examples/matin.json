@@ -1,17 +1,12 @@
 {
   "cut": true,
   "blocks": [
-    { "type": "title", "text": "Bonjour !" },
+    { "type": "title", "text": "Pause café" },
     { "type": "date" },
     { "type": "saint" },
+    { "type": "quote" },
     { "type": "separator", "style": "═" },
-    { "type": "weather", "location": "Lyon", "days": 3 },
-    { "type": "horoscope", "sign": "scorpion", "tone": "serieux" },
-    { "type": "horoscope", "sign": "gémeaux", "tone": "farfelu" },
-    { "type": "word_of_the_day" },
-    { "type": "todo", "items": ["Acheter du papier thermique", "Appeler maman", "Brancher la TM-T88V sur le Raspberry Pi et vérifier que la règle udev fonctionne"] },
-    { "type": "sudoku", "difficulty": "moyen" },
-    { "type": "maze", "width": 10, "height": 12 },
-    { "type": "qr", "data": "https://open-meteo.com", "caption": "Données météo : Open-Meteo" }
+    { "type": "enigme" },
+    { "type": "sudoku", "difficulty": "moyen" }
   ]
 }

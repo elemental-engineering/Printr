@@ -1,8 +1,0 @@
-{ "blocks": [
-  { "type": "picto", "shape": "coeur", "count": 3, "size": "petit" },
-  { "type": "title", "text": "Pour toi" },
-  { "type": "image", "path": "docs/demo/cafe.jpg" },
-  { "type": "text", "text": "Un petit café pour bien commencer la journée. Je pense fort à toi !", "align": "center" },
-  { "type": "text", "text": "- Alex", "align": "right", "bold": true },
-  { "type": "date" }
-] }

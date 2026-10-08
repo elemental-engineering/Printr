@@ -1,35 +1,24 @@
 //! Blocs paramétrables d'un ticket, décrits en JSON.
 
-mod agenda;
-mod air_quality;
 mod anagram;
 pub mod barnum;
 mod bins;
 mod cipher;
 mod coloring;
 mod coupon;
-mod crypto;
 mod glitch;
 mod holidays;
-mod horoscope;
 mod maze;
 mod mental_math;
-mod monthly;
 mod moon;
-mod news;
 mod nonogram;
-mod on_this_day;
 mod petit_bac;
 mod picto;
 mod quote;
 mod riddle;
 mod saint;
-mod shopping;
 mod sudoku;
-mod sun;
 mod train_tracks;
-mod weather;
-mod word;
 mod word_search;
 mod wifi;
 mod workout;
@@ -38,13 +27,11 @@ use std::panic::AssertUnwindSafe;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use chrono::NaiveDate;
 use rand::RngExt;
 use serde::Deserialize;
 
-use crate::cache::Cache;
-use crate::claude::Claude;
 use crate::doc::{Align, Doc, Style};
 use crate::{fr, raster};
 
@@ -65,15 +52,6 @@ fn six() -> u8 {
 }
 fn ten() -> u8 {
     10
-}
-fn default_coins() -> Vec<String> {
-    vec!["bitcoin".to_owned(), "ethereum".to_owned()]
-}
-fn default_currency() -> String {
-    "eur".to_owned()
-}
-fn default_max_age_hours() -> u32 {
-    24
 }
 
 #[derive(Deserialize)]
@@ -125,14 +103,9 @@ pub enum Block {
         #[serde(default = "one")]
         lines: u8,
     },
+    /// Image tirée d'un fichier local (logo, dessin…).
     Image {
-        #[serde(default)]
-        path: Option<String>,
-        #[serde(default)]
-        url: Option<String>,
-        /// Photo envoyée depuis l'interface web (identifiant).
-        #[serde(default)]
-        upload: Option<String>,
+        path: String,
         #[serde(default = "yes")]
         dither: bool,
     },
@@ -142,16 +115,6 @@ pub enum Block {
         size: Option<u8>,
         #[serde(default)]
         caption: Option<String>,
-    },
-    Weather {
-        location: String,
-        #[serde(default = "one")]
-        days: u8,
-    },
-    Horoscope {
-        sign: String,
-        #[serde(default)]
-        tone: horoscope::Tone,
     },
     Saint {},
     Todo {
@@ -199,7 +162,6 @@ pub enum Block {
         #[serde(default)]
         seed: Option<u64>,
     },
-    WordOfTheDay {},
     Holidays {
         #[serde(default)]
         zone: holidays::Zone,
@@ -211,23 +173,7 @@ pub enum Block {
         label: String,
         date: NaiveDate,
     },
-    OnThisDay {
-        #[serde(default = "three")]
-        count: u8,
-    },
-    AirQuality {
-        location: String,
-    },
     Quote {},
-    Crypto {
-        #[serde(default = "default_coins")]
-        coins: Vec<String>,
-        #[serde(default = "default_currency")]
-        currency: String,
-    },
-    Sun {
-        location: String,
-    },
     /// Horoscope hors ligne et gratuit, calculé sur le ciel réel par Barnum.
     Barnum {
         /// Signe (en français, accents facultatifs)…
@@ -332,15 +278,6 @@ pub enum Block {
         #[serde(default)]
         seed: Option<u64>,
     },
-    /// Liste de courses partagée de l'appli.
-    #[serde(alias = "courses")]
-    Shopping {
-        #[serde(default)]
-        title: Option<String>,
-        /// Vide la liste une fois imprimée (impressions par le serveur).
-        #[serde(default)]
-        clear: bool,
-    },
     /// Bon à offrir.
     #[serde(alias = "bon")]
     Coupon {
@@ -378,86 +315,25 @@ pub enum Block {
         #[serde(default)]
         always: bool,
     },
-    /// Agenda du jour depuis des calendriers ICS.
-    Agenda {
-        calendars: Vec<String>,
-        #[serde(default = "one")]
-        days: u8,
-        #[serde(default)]
-        title: Option<String>,
-    },
-    /// Bilan du mois, façon ticket de caisse.
-    #[serde(alias = "bilan")]
-    MonthlyReport {
-        /// « AAAA-MM » ; le mois en cours si absent.
-        #[serde(default)]
-        month: Option<String>,
-    },
     /// Mandala à colorier.
     #[serde(alias = "coloriage")]
     Coloring {
         #[serde(default)]
         seed: Option<u64>,
     },
-    /// Revue de presse à partir de flux RSS, sans IA.
-    News {
-        /// Titre du bandeau : « Actualités · <title> ».
-        title: String,
-        feeds: Vec<String>,
-        #[serde(default = "three")]
-        count: u8,
-        /// Nombre de QR codes vers les articles les mieux classés (0 à 2).
-        #[serde(default = "two")]
-        qr: u8,
-        /// Thèmes à privilégier (mots ou expressions).
-        #[serde(default)]
-        themes: Vec<String>,
-        /// Mots qui écartent un article.
-        #[serde(default)]
-        exclude: Vec<String>,
-        #[serde(default = "default_max_age_hours")]
-        max_age_hours: u32,
-    },
 }
 
 /// Ressources partagées par les blocs.
 pub struct Ctx {
     pub today: NaiveDate,
-    pub http: ureq::Agent,
-    pub claude: Option<Claude>,
-    pub cache: Option<Cache>,
-    /// Ignore le contenu du cache (mais le met à jour).
-    pub refresh: bool,
-    /// Aperçu : aucun appel payant (Claude) ; les blocs concernés affichent un texte d'attente.
+    /// Aperçu : pas de glitch glissé au hasard dans le ticket.
     pub preview: bool,
 }
 
 impl Ctx {
-    pub fn new(refresh: bool) -> Self {
-        let http = ureq::Agent::config_builder().timeout_global(Some(Duration::from_secs(20))).build().into();
-        Self {
-            today: chrono::Local::now().date_naive(),
-            http,
-            claude: Claude::from_env(),
-            cache: Cache::open(),
-            refresh,
-            preview: false,
-        }
+    pub fn new() -> Self {
+        Self { today: chrono::Local::now().date_naive(), preview: false }
     }
-
-    pub fn for_preview(mut self) -> Self {
-        self.preview = true;
-        self
-    }
-}
-
-/// Texte d'attente d'un bloc généré par Claude, en aperçu (le vrai texte coûte un appel).
-pub fn ai_placeholder(title: &str, what: &str) -> Doc {
-    let mut doc = Doc::new();
-    doc.header(title);
-    doc.feed(1);
-    doc.text(&format!("{what} sera rédigé par Claude au moment de l'impression."), Style::default().center());
-    doc
 }
 
 /// Bilan de la construction d'un bloc, pour la console et les réponses HTTP.
@@ -476,12 +352,9 @@ impl Block {
             Block::Anagram { .. } => "mot mystère",
             Block::Nonogram { .. } => "logimage",
             Block::Cipher { .. } => "message codé",
-            Block::Shopping { .. } => "liste de courses",
             Block::Coupon { .. } => "bon à offrir",
             Block::Wifi { .. } => "Wi-Fi",
             Block::Bins { .. } => "poubelles",
-            Block::Agenda { .. } => "agenda",
-            Block::MonthlyReport { .. } => "bilan du mois",
             Block::Coloring { .. } => "coloriage",
             Block::Title { .. } => "titre",
             Block::Text { .. } => "texte",
@@ -491,28 +364,20 @@ impl Block {
             Block::Feed { .. } => "espace",
             Block::Image { .. } => "image",
             Block::Qr { .. } => "QR code",
-            Block::Weather { .. } => "météo",
-            Block::Horoscope { .. } => "horoscope",
             Block::Saint {} => "saint du jour",
             Block::Todo { .. } => "à faire",
             Block::Sudoku { .. } => "sudoku",
             Block::WordSearch { .. } => "mots mêlés",
             Block::TrainTracks { .. } => "voie ferrée",
             Block::Maze { .. } => "labyrinthe",
-            Block::WordOfTheDay {} => "mot du jour",
             Block::Holidays { .. } => "jours fériés",
             Block::Moon {} => "lune",
             Block::Countdown { .. } => "compte à rebours",
-            Block::OnThisDay { .. } => "éphéméride",
-            Block::AirQuality { .. } => "qualité de l'air",
             Block::Quote {} => "citation",
-            Block::Crypto { .. } => "crypto",
-            Block::Sun { .. } => "lever/coucher du soleil",
             Block::Riddle { .. } => "énigme",
             Block::Workout { .. } => "défi sportif",
             Block::Picto { .. } => "pictogramme",
             Block::Barnum { .. } => "horoscope Barnum",
-            Block::News { .. } => "actualités",
         }
     }
 
@@ -520,8 +385,6 @@ impl Block {
     pub fn label(&self) -> String {
         let detail = match self {
             Block::Title { text, .. } => Some(text.chars().take(24).collect()),
-            Block::Weather { location, .. } | Block::AirQuality { location } => Some(location.clone()),
-            Block::Horoscope { sign, tone } => Some(format!("{sign} ({})", tone.label())),
             Block::Sudoku { difficulty, solution, .. } | Block::TrainTracks { difficulty, solution, .. } => {
                 Some(format!("{}{}", difficulty.label(), if *solution { ", solution" } else { "" }))
             }
@@ -537,21 +400,14 @@ impl Block {
             Block::Cipher { cipher, .. } => Some(cipher.label().to_owned()),
             Block::Coupon { text, .. } => text.clone(),
             Block::Wifi { ssid, .. } => Some(ssid.clone()),
-            Block::Agenda { title, .. } => title.clone(),
-            Block::MonthlyReport { month, .. } => month.clone(),
             Block::Nonogram { number, .. } => number.map(|n| format!("n° {n}")),
             Block::Countdown { label, .. } => Some(label.clone()),
-            Block::Crypto { coins, .. } => Some(coins.join(", ")),
-            Block::Sun { location } => Some(location.clone()),
-            Block::News { title, .. } => Some(title.clone()),
             Block::Workout { level, .. } => Some(level.label().to_owned()),
             Block::Picto { shape, .. } => Some(shape.label().to_owned()),
             Block::Barnum { sign, birth_date, .. } => {
                 birth_date.map(|d| format!("né le {d}")).or_else(|| sign.clone())
             }
-            Block::Image { path, url, upload, .. } => path.as_ref().or(url.as_ref()).or(upload.as_ref()).map(|p| {
-                p.rsplit('/').next().unwrap_or(p).to_owned()
-            }),
+            Block::Image { path, .. } => Some(path.rsplit('/').next().unwrap_or(path).to_owned()),
             _ => None,
         };
         match detail {
@@ -580,29 +436,8 @@ impl Block {
             Block::Feed { lines } => {
                 doc.feed(*lines);
             }
-            Block::Image { path, url, upload, dither } => {
-                let img = match (path, url, upload) {
-                    (None, None, Some(id)) => {
-                        anyhow::ensure!(id.chars().all(|c| c.is_ascii_hexdigit()), "photo invalide");
-                        let dir = crate::store::uploads_dir().context("répertoire de données introuvable")?;
-                        raster::load(&dir.join(format!("{id}.png")), *dither)?
-                    }
-                    (Some(path), None, None) => raster::load(path.as_ref(), *dither)?,
-                    (None, Some(url), None) => {
-                        let bytes = ctx
-                            .http
-                            .get(url)
-                            .call()
-                            .context("image injoignable")?
-                            .body_mut()
-                            .with_config()
-                            .limit(20 * 1024 * 1024)
-                            .read_to_vec()?;
-                        raster::prepare(&image::load_from_memory(&bytes)?, *dither)
-                    }
-                    _ => anyhow::bail!("indiquer `path`, `url` ou `upload` (un seul)"),
-                };
-                doc.image(img);
+            Block::Image { path, dither } => {
+                doc.image(raster::load(path.as_ref(), *dither)?);
             }
             Block::Qr { data, size, caption } => {
                 doc.qr(data, size.unwrap_or(6));
@@ -610,8 +445,6 @@ impl Block {
                     doc.text(caption, Style::default().small().center());
                 }
             }
-            Block::Weather { location, days } => doc = weather::build(&ctx.http, location, *days)?,
-            Block::Horoscope { sign, tone } => doc = horoscope::build(ctx, sign, *tone)?,
             Block::Saint {} => doc = saint::build(ctx.today),
             Block::Todo { title, items } => {
                 doc.header(title.as_deref().unwrap_or("À faire"));
@@ -629,7 +462,6 @@ impl Block {
             Block::Maze { width, height, seed } => {
                 doc = maze::build(width.unwrap_or(12), height.unwrap_or(16), *seed);
             }
-            Block::WordOfTheDay {} => doc = word::build(ctx)?,
             Block::Holidays { zone, count } => doc = holidays::build(ctx.today, *zone, *count),
             Block::Moon {} => doc = moon::build(chrono::Utc::now()),
             Block::Countdown { label, date } => {
@@ -643,11 +475,7 @@ impl Block {
                 doc.text(&big, Style::default().bold().center().size(size));
                 doc.text(&small, Style::default().center());
             }
-            Block::OnThisDay { count } => doc = on_this_day::build(&ctx.http, ctx.today, *count)?,
-            Block::AirQuality { location } => doc = air_quality::build(&ctx.http, location)?,
             Block::Quote {} => doc = quote::build(ctx.today),
-            Block::Crypto { coins, currency } => doc = crypto::build(&ctx.http, coins, currency)?,
-            Block::Sun { location } => doc = sun::build(ctx, location)?,
             Block::Riddle { kind, number, answer } => doc = riddle::build(ctx.today, *kind, *number, *answer)?,
             Block::Workout { level, number } => doc = workout::build(ctx.today, *level, *number)?,
             Block::Picto { shape, size, count } => doc = picto::build(*shape, *size, *count),
@@ -668,7 +496,6 @@ impl Block {
             Block::Cipher { message, cipher: kind, shift, answer, seed } => {
                 doc = cipher::build(message.as_deref(), *kind, *shift, *answer, *seed);
             }
-            Block::Shopping { title, .. } => doc = shopping::build(title.as_deref())?,
             Block::Coupon { text, from, to, valid_until, count } => {
                 let coupon = coupon::Coupon {
                     text: text.as_deref(),
@@ -683,19 +510,7 @@ impl Block {
                 doc = wifi::build(ssid, password.as_deref(), *security, *hidden, *show_password)?;
             }
             Block::Bins { collections, when, always } => doc = bins::build(collections, *when, *always, ctx.today)?,
-            Block::Agenda { calendars, days, title } => doc = agenda::build(ctx, calendars, *days, title.as_deref())?,
-            Block::MonthlyReport { month } => doc = monthly::build(month.as_deref(), ctx.today)?,
             Block::Coloring { seed } => doc = coloring::build(*seed),
-            Block::News { title, feeds, count, qr, themes, exclude, max_age_hours } => {
-                let options = news::Options {
-                    count: (*count).clamp(1, 5) as usize,
-                    qr: *qr as usize,
-                    themes,
-                    exclude,
-                    max_age: chrono::Duration::hours(*max_age_hours as i64),
-                };
-                doc = news::build(ctx, title, feeds, &options)?;
-            }
         }
         Ok(doc)
     }
@@ -796,9 +611,9 @@ mod tests {
             r#"{"blocks": [
                 {"type": "title", "text": "Bonjour"},
                 {"type": "saint"},
-                {"type": "horoscope", "sign": "lion", "tone": "farfelu"},
+                {"type": "voie_ferree"},
                 {"type": "sudoku", "difficulty": "facile"},
-                {"type": "word_of_the_day"}
+                {"type": "mots_meles"}
             ]}"#,
         )
         .unwrap();
@@ -810,12 +625,12 @@ mod tests {
     fn parses_new_daily_blocks_and_defaults() {
         let t: Ticket = serde_json::from_str(
             r#"{"blocks": [
-                {"type": "sun", "location": "Lyon"},
+                {"type": "calcul_mental"},
                 {"type": "enigme", "kind": "charade", "answer": "lendemain"}
             ]}"#,
         )
         .unwrap();
-        assert!(matches!(t.blocks[0], Block::Sun { ref location } if location == "Lyon"));
+        assert!(matches!(t.blocks[0], Block::MentalMath { .. }));
         assert!(matches!(t.blocks[1], Block::Riddle { kind: Some(riddle::Kind::Charade), .. }));
     }
 
@@ -831,7 +646,7 @@ mod tests {
             r#"{"blocks": [{"type": "text", "text": "avant"}, {"type": "image", "path": "/nope.png"}, {"type": "text", "text": "après"}]}"#,
         )
         .unwrap();
-        let ctx = Ctx { today: NaiveDate::from_ymd_opt(2026, 10, 7).unwrap(), http: ureq::agent(), claude: None, cache: None, refresh: false, preview: false };
+        let ctx = Ctx { today: NaiveDate::from_ymd_opt(2026, 10, 7).unwrap(), preview: false };
         let (doc, reports) = t.build(&ctx, &mut Silent);
         let preview = doc.preview(true);
         assert_eq!(reports.iter().filter(|r| r.error.is_some()).count(), 1);
@@ -849,14 +664,7 @@ mod tests {
             ]}"#,
         )
         .unwrap();
-        let ctx = Ctx {
-            today: NaiveDate::from_ymd_opt(2026, 10, 7).unwrap(),
-            http: ureq::agent(),
-            claude: None,
-            cache: None,
-            refresh: false,
-            preview: false,
-        };
+        let ctx = Ctx { today: NaiveDate::from_ymd_opt(2026, 10, 7).unwrap(), preview: false };
         /// Note l'ordre dans lequel les blocs se terminent.
         struct Recorder(Vec<String>);
         impl Progress for Recorder {

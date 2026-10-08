@@ -284,47 +284,8 @@ impl Doc {
         out
     }
 
-    /// Ticket mis en page pour l'aperçu de l'interface web : lignes stylées et images
-    /// (PNG en base64, QR codes compris).
-    pub fn to_json(&self) -> serde_json::Value {
-        use base64::Engine;
-        let png = |img: &GrayImage| -> Option<serde_json::Value> {
-            let mut bytes = Vec::new();
-            image::DynamicImage::ImageLuma8(img.clone())
-                .write_to(&mut std::io::Cursor::new(&mut bytes), image::ImageFormat::Png)
-                .ok()?;
-            let data = base64::engine::general_purpose::STANDARD.encode(bytes);
-            Some(serde_json::json!({
-                "t": "image",
-                "src": format!("data:image/png;base64,{data}"),
-                "width": img.width(),
-                "height": img.height(),
-            }))
-        };
-        let ops: Vec<serde_json::Value> = self
-            .ops
-            .iter()
-            .filter_map(|op| match op {
-                Op::Line { text, style } => Some(serde_json::json!({
-                    "t": "line",
-                    "text": text,
-                    "bold": style.bold,
-                    "underline": style.underline,
-                    "reverse": style.reverse,
-                    "small": style.small,
-                    "size": style.size,
-                    "align": match style.align { Align::Left => "left", Align::Center => "center", Align::Right => "right" },
-                    "flip": style.upside_down,
-                })),
-                Op::Image(img) => png(img),
-                Op::Qr { data, .. } => crate::draw::qr_row(&[data.as_str()]).ok().and_then(|img| png(&img)),
-                Op::Feed(n) => Some(serde_json::json!({ "t": "feed", "n": n })),
-            })
-            .collect();
-        serde_json::json!({ "ops": ops, "height_dots": self.height_dots() })
-    }
-
-    /// Aperçu sans couleurs (réponses HTTP, tests).
+    /// Aperçu sans couleurs (tests).
+    #[cfg(test)]
     pub fn preview(&self, cut: bool) -> String {
         anstream::adapter::strip_str(&self.preview_styled(cut)).to_string()
     }

@@ -3,9 +3,6 @@
     { "type": "quote" },
     { "type": "holidays", "count": 3 },
     { "type": "countdown", "label": "Noël", "date": "2026-12-25" },
-    { "type": "moon" },
-    { "type": "on_this_day", "count": 3 },
-    { "type": "air_quality", "location": "Lyon" },
-    { "type": "crypto", "coins": ["bitcoin", "ethereum", "solana"] }
+    { "type": "moon" }
   ]
 }

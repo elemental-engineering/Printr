@@ -70,15 +70,6 @@ pub fn command() -> Vec<String> {
         .collect()
 }
 
-/// Barnum est-il installé ? (programme trouvé dans le PATH, ou chemin existant)
-pub fn available() -> bool {
-    let Some(program) = command().into_iter().next() else { return false };
-    if program.contains('/') {
-        return std::path::Path::new(&program).exists();
-    }
-    std::env::var_os("PATH").is_some_and(|path| std::env::split_paths(&path).any(|dir| dir.join(&program).is_file()))
-}
-
 /// Lance Barnum et lit sa réponse JSON.
 fn run(command: &[String], who: &Who, date: NaiveDate, variant: Option<&str>) -> Result<Reading> {
     let (program, base) = command.split_first().context("commande Barnum vide")?;

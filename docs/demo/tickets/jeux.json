@@ -1,7 +1,0 @@
-{ "blocks": [
-  { "type": "title", "text": "Pause jeux" },
-  { "type": "enigme", "number": 25 },
-  { "type": "sudoku", "difficulty": "moyen", "seed": 2026 },
-  { "type": "mots_meles", "difficulty": "facile", "theme": "animaux", "seed": 41082 },
-  { "type": "defi_sportif", "level": "difficile", "number": 25 }
-] }

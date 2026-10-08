@@ -8,17 +8,12 @@ use clap::builder::styling::{AnsiColor, Styles};
 use clap::{ArgAction, CommandFactory, FromArgMatches, Parser, Subcommand};
 
 mod blocks;
-mod cache;
-mod claude;
 mod cp858;
 mod doc;
 mod draw;
 mod fr;
 mod output;
 mod raster;
-mod scheduler;
-mod server;
-mod store;
 mod ui;
 
 use doc::{Doc, Style};
@@ -63,10 +58,6 @@ struct Cli {
     #[arg(long, global = true)]
     preview: bool,
 
-    /// Régénère les actualités, les horaires du soleil, l'horoscope et le mot du jour
-    #[arg(long, global = true)]
-    refresh: bool,
-
     /// N'affiche que les erreurs
     #[arg(short, long, global = true)]
     quiet: bool,
@@ -91,21 +82,6 @@ enum Command {
         #[arg(value_name = "TICKET")]
         file: Option<PathBuf>,
     },
-    /// Lance l'interface web et l'API (avec le planificateur)
-    Serve {
-        /// Adresse d'écoute (défaut 0.0.0.0:8080, ou $PRINTR_LISTEN)
-        #[arg(long, value_name = "ADRESSE", default_value = "0.0.0.0:8080", env = "PRINTR_LISTEN",
-              hide_default_value = true, hide_env = true)]
-        listen: String,
-        /// Jeton pour les scripts : « Authorization: Bearer <jeton> » (ou $PRINTR_TOKEN)
-        #[arg(long, value_name = "JETON", env = "PRINTR_TOKEN", hide_env = true)]
-        token: Option<String>,
-    },
-    /// Gère les comptes de l'interface web
-    User {
-        #[command(subcommand)]
-        action: UserAction,
-    },
     /// Imprime un ticket de test (styles, accents, QR code)
     Test,
     /// Imprime du texte (lit l'entrée standard si aucun texte n'est donné)
@@ -129,68 +105,6 @@ enum Command {
         #[arg(long)]
         no_cut: bool,
     },
-}
-
-#[derive(Subcommand)]
-enum UserAction {
-    /// Crée un compte (le mot de passe est demandé)
-    Add {
-        #[arg(value_name = "PRÉNOM")]
-        name: String,
-    },
-    /// Change le mot de passe d'un compte
-    Passwd {
-        #[arg(value_name = "PRÉNOM")]
-        name: String,
-    },
-    /// Supprime un compte et ses presets
-    Remove {
-        #[arg(value_name = "PRÉNOM")]
-        name: String,
-    },
-    /// Liste les comptes
-    List,
-}
-
-fn user_command(action: &UserAction) -> Result<()> {
-    let mut store = store::Store::open()?;
-    let ask = |name: &str| -> Result<String> {
-        // Hors terminal (script de déploiement), le mot de passe est lu sur l'entrée standard.
-        if !std::io::IsTerminal::is_terminal(&std::io::stdin()) {
-            let mut line = String::new();
-            std::io::stdin().read_line(&mut line)?;
-            return Ok(line.trim_end_matches(['\r', '\n']).to_owned());
-        }
-        let first = rpassword::prompt_password(format!("Mot de passe pour {name} : "))?;
-        let again = rpassword::prompt_password("Confirmation : ")?;
-        anyhow::ensure!(first == again, "les deux mots de passe diffèrent");
-        Ok(first)
-    };
-    let done = match action {
-        UserAction::Add { name } => {
-            let password = ask(name)?;
-            store.add_user(name, &password)?;
-            format!("compte « {name} » créé")
-        }
-        UserAction::Passwd { name } => {
-            let password = ask(name)?;
-            store.set_password(name, &password)?;
-            format!("mot de passe de « {name} » changé")
-        }
-        UserAction::Remove { name } => {
-            store.remove_user(name)?;
-            format!("compte « {name} » supprimé")
-        }
-        UserAction::List => {
-            for user in store.users() {
-                anstream::println!("{}", user.name);
-            }
-            return Ok(());
-        }
-    };
-    store.save()?;
-    anstream::eprintln!("{}✓{} {done}", anstyle::AnsiColor::Green.on_default().bold(), anstyle::Reset);
-    Ok(())
 }
 
 /// Analyse la ligne de commande, avec une aide en français.
@@ -232,16 +146,9 @@ fn run(cli: Cli) -> Result<()> {
         _ => Target::Device(cli.device.clone()),
     };
 
-    // On prépare tout le ticket (y compris les requêtes réseau) avant d'ouvrir l'imprimante.
+    // On prépare tout le ticket avant d'ouvrir l'imprimante.
     let mut reports = Vec::new();
     let (doc, cut) = match &cli.command {
-        Command::Serve { listen, token } => {
-            if let Some(token) = token {
-                anyhow::ensure!(token.len() >= 16, "le jeton doit faire au moins 16 caractères");
-            }
-            return server::serve(listen, token.clone(), target);
-        }
-        Command::User { action } => return user_command(action),
         Command::Print { file } => {
             let json = match file {
                 Some(path) if path.as_os_str() != "-" => std::fs::read_to_string(path)
@@ -251,7 +158,7 @@ fn run(cli: Cli) -> Result<()> {
             let ticket: blocks::Ticket = serde_json::from_str(&json).context("ticket JSON invalide")?;
             let mut progress: Box<dyn blocks::Progress> =
                 if cli.quiet { Box::new(blocks::Silent) } else { Box::new(ui::Console::new()) };
-            let (doc, ticket_reports) = ticket.build(&blocks::Ctx::new(cli.refresh), progress.as_mut());
+            let (doc, ticket_reports) = ticket.build(&blocks::Ctx::new(), progress.as_mut());
             reports = ticket_reports;
             (doc, ticket.cut)
         }

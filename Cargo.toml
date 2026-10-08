@@ -7,21 +7,11 @@ edition = "2024"
 anstream = "1.0.0"
 anstyle = "1.0.14"
 anyhow = "1.0.104"
-argon2 = "0.6.0"
-base64 = "0.23.1"
 chrono = { version = "0.4.45", features = ["serde"] }
-chrono-tz = "0.10.4"
 clap = { version = "4.6.7", features = ["derive", "env"] }
 escpos = { version = "0.20.0", features = ["graphics"] }
-feed-rs = "3.0.0"
 image = "0.25"
-qrcode = { version = "0.14.1", default-features = false }
 rand = "0.10.3"
-rpassword = "7.5.4"
-rrule = "0.14.0"
-rss = "2.1.2"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 terminal_size = "0.4.4"
-tiny_http = "0.12.0"
-ureq = { version = "3.4.2", features = ["json"] }
