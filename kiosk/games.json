@@ -5,15 +5,15 @@
     {
       "title": "Pack pause",
       "icon": "cafe",
-      "description": "Cinq jeux tirés au hasard, pour toute la pause.",
-      "pack": { "pick": "hasard", "count": 5, "exclude": ["petit-bac"] },
+      "description": "Quatre jeux tirés au hasard, pour toute la pause.",
+      "pack": { "pick": "hasard", "count": 4, "exclude": ["petit-bac", "coloriage", "logimage"] },
       "template": "pack"
     },
     {
       "title": "Les plus joués",
       "icon": "etoile",
-      "description": "Les cinq jeux les plus imprimés sur la borne.",
-      "pack": { "pick": "populaires", "count": 5, "exclude": ["petit-bac"] },
+      "description": "Les quatre jeux les plus imprimés sur la borne.",
+      "pack": { "pick": "populaires", "count": 4, "exclude": ["petit-bac", "coloriage", "logimage"] },
       "template": "pack"
     },
     {
