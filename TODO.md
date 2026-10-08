@@ -16,6 +16,21 @@ modèles de tickets) fonctionne ; il reste surtout la carte ESP32.
   - afficher le `Framebuffer` à l'écran ;
   - transformer chaque appui en `Event::Tap`, et envoyer régulièrement des `Event::Tick` ;
   - imprimer les tickets de `Effect::Print` l'un après l'autre, puis appeler `print_finished`.
+- [ ] **Appui long** : envoyer le doigt posé et levé (`Event::Down`, `Event::Up`) au lieu de
+  simples `Event::Tap`, pour ouvrir le mode maintenance.
+- [ ] **Wi-Fi du mode maintenance** : tant que `app.wifi_wanted()` est vrai, allumer le Wi-Fi et
+  chercher le réseau de `config().maintenance.wifi`, en réessayant sans fin ; donner l'état avec
+  `app.set_wifi()` (recherche, puis force du signal et adresse) ; couper le Wi-Fi dès que le mode
+  est quitté.
+- [ ] **Horloge** : une RTC (celle de l'ESP32 ou un module externe, à choisir selon la dérive
+  mesurée), lue chaque seconde et donnée à `app.set_clock()`.
+- [ ] **Synchronisation NTP** : quand `app.ntp_wanted()` devient vrai (maintenance, Wi-Fi
+  connecté), interroger un serveur NTP et mettre la RTC à l'heure (`app.set_ntp(Syncing)`, puis
+  `Synced` ou `Failed`). Réessayer après un échec, par exemple toutes les 30 secondes. Une fois
+  synchronisée, mesurer l'écart RTC − heure NTP en réinterrogeant le serveur régulièrement
+  (toutes les 10 à 60 s, sans corriger l'horloge), et le redonner avec `Synced { offset_ms }`.
+  L'estimer avec le compteur de l'ESP32 comparerait la RTC à son propre quartz, pas à l'heure
+  réelle : si la RTC est celle de l'ESP32, la dérive resterait invisible.
 - [ ] **Graine du tirage** au démarrage : `app.seed()` avec le générateur matériel de l'ESP32.
 - [ ] **Popularité** : sauvegarder `app.popularity()` en flash après chaque impression, et la
   reprendre avec `app.set_popularity()` au démarrage.
@@ -27,6 +42,18 @@ modèles de tickets) fonctionne ; il reste surtout la carte ESP32.
   adaptateur (MAX3232, ~2 €).
 - [ ] **Glitch de Printr** : le désactiver sur la borne (équivalent de `PRINTR_GLITCH=0`), pour ne
   garder que le ticket glitch à 0,001 % de l'interface.
+
+## Mode maintenance : outils à venir
+
+- [ ] **Mise à jour (OTA)** : envoyer un nouveau programme (et un nouveau `games.json`) par le
+  Wi-Fi de maintenance.
+- [ ] **Statistiques** : afficher les impressions par jeu (`app.popularity()`) et le papier
+  consommé.
+- [ ] **Envoi des statistiques** : les transmettre (format et destination à définir).
+- [ ] **Sortie automatique** : faut-il quitter la maintenance après un long moment sans appui,
+  pour qu'une borne oubliée en maintenance redevienne jouable ? Aujourd'hui, elle y reste.
+- [ ] **Mot de passe du Wi-Fi** : il est dans `games.json`, donc public. Réserver ce réseau à la
+  maintenance (partage de connexion de téléphone), ou sortir les identifiants du dépôt.
 
 ## Décisions à prendre
 

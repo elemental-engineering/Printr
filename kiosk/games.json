@@ -1,6 +1,9 @@
 {
   "title": "FabLab · Pause jeux",
   "template": "defaut",
+  "maintenance": {
+    "wifi": { "ssid": "FabLab-Maintenance", "password": "pause-cafe-2026" }
+  },
   "games": [
     {
       "title": "Pack pause",

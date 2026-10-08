@@ -26,9 +26,28 @@ pub struct Config {
     #[serde(default = "default_template")]
     pub template: String,
     pub games: Vec<Game>,
+    /// Réglages du mode maintenance.
+    #[serde(default)]
+    pub maintenance: Maintenance,
     /// Modèles de tickets, par nom (le nom du fichier sans `.json`).
     #[serde(skip)]
     pub templates: BTreeMap<String, Value>,
+}
+
+/// Mode maintenance : ouvert par un appui de 6 s sur le titre de l'accueil.
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Maintenance {
+    /// Réseau que la borne rejoint tant que le mode maintenance est ouvert.
+    #[serde(default)]
+    pub wifi: WifiNetwork,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WifiNetwork {
+    pub ssid: String,
+    pub password: String,
 }
 
 fn default_template() -> String {

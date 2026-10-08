@@ -7,6 +7,7 @@
 mod app;
 mod config;
 mod icons;
+mod status;
 
 use std::convert::Infallible;
 
@@ -14,7 +15,10 @@ use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
 
 pub use app::{App, Effect, Event, HEIGHT, WIDTH};
-pub use config::{Choice, Config, Game, GameOption, Icon, Pack, Pick, Solution, DEFAULT_TEMPLATE, PLACEHOLDER};
+pub use config::{
+    Choice, Config, Game, GameOption, Icon, Maintenance, Pack, Pick, Solution, WifiNetwork, DEFAULT_TEMPLATE, PLACEHOLDER,
+};
+pub use status::{format_offset, Clock, NtpStatus, WifiStatus};
 pub use embedded_graphics::prelude::Point;
 
 /// Image de l'écran en mémoire (RGB565), dans laquelle [`App::draw`] dessine.
@@ -371,6 +375,100 @@ mod tests {
         app.set_glitch_odds(0);
         tap(&mut app, layout::tile(2));
         assert_eq!(tap(&mut app, layout::print_button()), Effect::Print(vec![app.config().ticket(2, &[1]).to_string()]));
+    }
+
+    /// Appui long : doigt posé, temps qui passe par pas de 100 ms, doigt levé.
+    fn hold(app: &mut App, at: Point, ms: u32) -> Vec<Effect> {
+        app.handle(Event::Down(at));
+        let effects = (0..ms / 100).map(|_| app.handle(Event::Tick(100))).collect();
+        app.handle(Event::Up);
+        effects
+    }
+
+    #[test]
+    fn long_press_on_the_title_opens_maintenance() {
+        let mut app = app();
+        let title = layout::title_area().center();
+        // 5 s ne suffisent pas, et lever le doigt efface la barre de progression.
+        app.handle(Event::Down(title));
+        for _ in 0..50 {
+            app.handle(Event::Tick(100));
+        }
+        assert_eq!(app.handle(Event::Up), Effect::Redraw);
+        assert!(!app.wifi_wanted());
+        // 6 s : le mode maintenance s'ouvre, et la carte doit chercher le Wi-Fi.
+        let effects = hold(&mut app, title, 6_000);
+        assert_eq!(effects.iter().filter(|e| **e == Effect::Redraw).count(), 51, "progression puis ouverture");
+        assert!(app.wifi_wanted());
+        // Le lever du doigt n'est pas un appui : on reste en maintenance, même longtemps après.
+        app.handle(Event::Tick(3_600_000));
+        assert!(app.wifi_wanted());
+        assert_eq!(app.config().maintenance.wifi.ssid, "FabLab-Maintenance");
+        // « Quitter » : retour à l'accueil, Wi-Fi coupé.
+        assert_eq!(tap(&mut app, layout::maintenance_quit()), Effect::Redraw);
+        assert!(!app.wifi_wanted());
+    }
+
+    #[test]
+    fn long_press_elsewhere_does_nothing() {
+        let mut app = app();
+        hold(&mut app, layout::tile(2).center(), 7_000); // sur une tuile : simple appui au lever
+        assert!(!app.wifi_wanted());
+        // Sur l'écran du sudoku ouvert par ce lever, la même zone est « Retour » : un simple appui.
+        hold(&mut app, layout::title_area().center(), 7_000);
+        assert!(!app.wifi_wanted());
+        assert_eq!(tap(&mut app, layout::tile(2)), Effect::Redraw, "de retour à l'accueil");
+    }
+
+    #[test]
+    fn down_up_is_a_tap() {
+        let mut app = app();
+        app.handle(Event::Down(layout::tile(2).center()));
+        assert_eq!(app.handle(Event::Up), Effect::Redraw);
+        assert_eq!(app.handle(Event::Up), Effect::None, "un seul appui par doigt posé");
+    }
+
+    /// Position dans l'image courante de l'animation Wi-Fi (0 à 399 ms).
+    fn app_anim_phase(app: &App) -> u32 {
+        app.anim_ms() % 400
+    }
+
+    #[test]
+    fn wifi_status_and_clock_redraw_when_needed() {
+        let mut app = app();
+        let clock = Clock { year: 2026, month: 10, day: 8, hour: 22, minute: 31, second: 5 };
+        assert_eq!(app.set_clock(clock), Effect::None, "l'heure ne s'affiche qu'en maintenance");
+        assert_eq!(app.set_wifi(WifiStatus::Searching), Effect::Redraw);
+        assert_eq!(app.set_wifi(WifiStatus::Searching), Effect::None);
+        // Hors maintenance, pas d'icône Wi-Fi : son animation ne redessine rien.
+        assert_eq!(app.handle(Event::Tick(400)), Effect::None);
+        hold(&mut app, layout::title_area().center(), 6_000);
+        // En maintenance, la recherche anime l'icône toutes les 400 ms.
+        app.handle(Event::Tick(400 - app_anim_phase(&app)));
+        assert_eq!(app.handle(Event::Tick(399)), Effect::None);
+        assert_eq!(app.handle(Event::Tick(1)), Effect::Redraw);
+        assert_eq!(app.set_clock(Clock { second: 6, ..clock }), Effect::Redraw);
+        assert_eq!(app.set_wifi(WifiStatus::Connected { rssi: -58, ip: Some("192.168.4.27".into()) }), Effect::Redraw);
+        app.draw(&mut Framebuffer::new()).unwrap();
+    }
+
+    #[test]
+    fn ntp_only_once_connected_in_maintenance() {
+        let mut app = app();
+        app.set_wifi(WifiStatus::Connected { rssi: -50, ip: None });
+        assert!(!app.ntp_wanted(), "pas hors maintenance");
+        assert_eq!(app.set_ntp(NtpStatus::Syncing), Effect::None, "rien à redessiner hors maintenance");
+        hold(&mut app, layout::title_area().center(), 6_000);
+        assert!(app.ntp_wanted());
+        assert_eq!(app.set_ntp(NtpStatus::Synced { offset_ms: 12 }), Effect::Redraw);
+        assert_eq!(app.set_ntp(NtpStatus::Synced { offset_ms: 13 }), Effect::Redraw, "l'écart se met à jour");
+        app.draw(&mut Framebuffer::new()).unwrap();
+        // Wi-Fi perdu : plus de synchronisation demandée.
+        app.set_wifi(WifiStatus::Searching);
+        assert!(!app.ntp_wanted());
+        // En quittant, l'état est oublié : nouvelle synchronisation à la prochaine maintenance.
+        tap(&mut app, layout::maintenance_quit());
+        assert_eq!(app.ntp(), NtpStatus::Idle);
     }
 
     #[test]

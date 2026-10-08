@@ -41,6 +41,7 @@ L'interface est pensée pour un écran tactile de 480 × 272 (carte ESP32-S3 de 
   imprimé sur la grille, et la borne en imprime la solution.
 - **Impression**, puis « Bonne pause ! », et retour à l'accueil. Sans appui pendant une minute,
   la borne revient d'elle-même à l'accueil.
+- **Maintenance**, cachée : voir [Mode maintenance](#mode-maintenance).
 
 L'interface ne connaît pas les jeux : tout est décrit dans [`kiosk/games.json`](kiosk/games.json),
 et chaque ticket est mis en forme par un modèle de [`kiosk/templates/`](kiosk/templates/).
@@ -131,6 +132,49 @@ propre ticket, coupé (`App::set_glitch_odds` pour changer la fréquence, `0` po
 `cargo test` vérifie que chaque ticket que la borne peut produire (chaque jeu, chaque réglage,
 chaque pack, chaque solution) est valide et s'imprime sans erreur.
 
+### Mode maintenance
+
+Un appui de **6 secondes sur le titre** de l'accueil ouvre le mode maintenance (une fine barre
+orange montre la progression à partir d'une seconde). Son thème sombre, bandeau noir souligné
+d'ambre, le distingue au premier coup d'œil de l'écran des joueurs.
+
+<p align="center">
+  <img src="docs/maintenance.png" alt="Mode maintenance : horloge de la carte, Wi-Fi connecté au réseau attendu, outils à venir" width="480">
+</p>
+
+- **Horloge (RTC)** : la date et l'heure de la carte, à la seconde. Une fois le Wi-Fi connecté,
+  la carte la synchronise par NTP ; l'écran l'indique en couleur (« Synchronisation NTP... »,
+  « Synchronisée (NTP) » ou « Synchronisation échouée ») et, une fois synchronisée, affiche en
+  direct l'écart entre l'horloge et l'heure NTP : sa dérive depuis la mise à l'heure (en vert
+  sous la demi-seconde, en ambre au-delà).
+- **Wi-Fi** : tant que le mode est ouvert, la carte allume le Wi-Fi et cherche le réseau attendu,
+  sans s'arrêter, jusqu'à ce qu'on le quitte. L'écran affiche ce réseau et son mot de passe,
+  pour créer au besoin un point d'accès avec un téléphone. Une fois connecté, il laisse la
+  place à la force du signal et à l'adresse obtenue.
+- **Mise à jour, statistiques, envoi des statistiques** : la place des outils à venir.
+- **Icône Wi-Fi**, dans le bandeau de la maintenance seulement (jamais sur les écrans des
+  joueurs) : barrée quand le Wi-Fi est coupé, animée pendant la recherche, et de un à trois arcs
+  une fois connectée, selon la force du signal.
+- **Quitter** : retour à l'accueil, Wi-Fi coupé.
+
+Le réseau se règle dans `games.json` :
+
+```json
+"maintenance": {
+  "wifi": { "ssid": "FabLab-Maintenance", "password": "pause-cafe-2026" }
+}
+```
+
+Ce mot de passe est public, comme tout le dépôt : réservez-le à un réseau dédié à la maintenance
+(un partage de connexion de téléphone, par exemple).
+
+Côté carte : `App::wifi_wanted()` dit quand allumer le Wi-Fi et chercher le réseau,
+`App::set_wifi()` donne son état à l'interface (`Off`, `Searching`, `Connected { rssi, ip }`), et
+`App::set_clock()`, appelé chaque seconde, l'heure de l'horloge. `App::ntp_wanted()` dit quand
+synchroniser l'horloge (maintenance, Wi-Fi connecté), et `App::set_ntp()` en donne l'état
+(`Syncing`, `Synced { offset_ms }` avec l'écart du moment, `Failed`). L'appui long demande à la carte
+d'envoyer le doigt posé et levé (`Event::Down`, `Event::Up`).
+
 ### Simulateur
 
 `kiosk/sim` joue une suite d'appuis sur l'interface, enregistre chaque écran en PNG et écrit les
@@ -138,12 +182,16 @@ tickets produits (un fichier et une ligne par ticket). Sans étapes, il fait la 
 
 ```sh
 cargo run -p borne-sim -- tap:299,97 tap:410,84 tap:364,238      # sudoku, difficile, imprimer
-cargo run -p borne-sim -- --seed 7 --glitch 0 --gif docs/borne.gif  # l'animation ci-dessus
+cargo run -p borne-sim -- --seed 7 --glitch 0 --clock "2026-10-08 10:15:00" --gif docs/borne.gif  # l'animation ci-dessus
+cargo run -p borne-sim -- --clock "2026-10-08 22:31:05" hold:120,18,6000 wifi:-58 ntp:+12  # la maintenance
 ```
 
 | Étape ou option | Effet |
 | --- | --- |
 | `tap:X,Y` | Appui, en points |
+| `hold:X,Y,MS` | Appui long (`hold:120,18,6000` ouvre le mode maintenance) |
+| `wifi:off`, `wifi:scan`, `wifi:-58` | État du Wi-Fi : coupé, recherche, connecté (force du signal en dBm) |
+| `ntp:sync`, `ntp:fail`, `ntp:+12` | Synchronisation NTP : en cours, échouée, réussie (écart en ms) |
 | `wait:MS` | Temps qui passe |
 | `fail` | La prochaine impression échoue |
 | `--kiosk <dossier>` | Dossier de `games.json` et `templates/` (défaut `kiosk`) |
@@ -151,9 +199,11 @@ cargo run -p borne-sim -- --seed 7 --glitch 0 --gif docs/borne.gif  # l'animatio
 | `--seed <n>` | Rejoue le même tirage des packs |
 | `--glitch <n>` | Un ticket glitch une impression sur `n` (`1` : toujours, `0` : jamais) |
 | `--gif <fichier>` | Enregistre aussi la visite en GIF animé, appuis marqués d'un cercle |
+| `--clock "AAAA-MM-JJ hh:mm:ss"` | Heure de la carte au départ (sinon l'heure UTC), qui avance avec `wait` |
 
 Repères à l'écran : les tuiles sont centrées en x = 63, 181, 299, 417 et y = 97, 211 ; « Imprimer »
-en 364,238 ; « Solution » en 68,238 ; « Retour » en 55,18 ; page suivante en 458,18.
+en 364,238 ; « Solution » en 68,238 ; « Retour » en 55,18 ; page suivante en 458,18 ; « Quitter »
+la maintenance en 388,245.
 
 L'interface elle-même est la crate `kiosk/ui` (`borne-ui`), dessinée avec
 [embedded-graphics](https://docs.rs/embedded-graphics) et indépendante du matériel : l'appareil
