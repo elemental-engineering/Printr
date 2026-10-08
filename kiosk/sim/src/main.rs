@@ -10,14 +10,18 @@
 //! Étapes : `tap:X,Y` (appui), `wait:MS` (temps qui passe), `fail` (la prochaine impression échoue).
 //! Options : `--kiosk <dossier>` (games.json et templates/, défaut `kiosk`), `--out <dossier>`, et
 //! `--seed <nombre>` pour rejouer le même tirage des packs (sinon tiré de l'horloge), et
-//! `--glitch <n>` pour un ticket glitch une impression sur `n` (`1` : à chaque fois, `0` : jamais).
+//! `--glitch <n>` pour un ticket glitch une impression sur `n` (`1` : à chaque fois, `0` : jamais),
+//! `--gif <fichier>` pour enregistrer aussi la visite en GIF animé, appuis marqués d'un cercle.
 
 use std::path::PathBuf;
 
 use anyhow::{bail, Context, Result};
 use borne_ui::{App, Config, Effect, Event, Framebuffer, Point, HEIGHT, WIDTH};
-use embedded_graphics::pixelcolor::Rgb888;
-use embedded_graphics::prelude::RgbColor;
+use embedded_graphics::pixelcolor::{Rgb565, Rgb888};
+use embedded_graphics::prelude::*;
+use embedded_graphics::primitives::{Circle, PrimitiveStyle};
+use image::codecs::gif::{GifEncoder, Repeat};
+use image::{Delay, RgbaImage};
 
 /// Visite guidée : pages, pack au hasard imprimé, sudoku réglé et imprimé, pack des plus joués,
 /// mots mêlés, puis la solution d'un sudoku tapée sur le pavé numérique.
@@ -52,6 +56,7 @@ fn main() -> Result<()> {
     let mut out = PathBuf::from("kiosk/captures");
     let mut steps = Vec::new();
     let mut glitch = None;
+    let mut gif: Option<PathBuf> = None;
     let mut seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_nanos() as u64;
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -59,6 +64,7 @@ fn main() -> Result<()> {
             "--out" => out = args.next().context("--out attend un dossier")?.into(),
             "--seed" => seed = args.next().context("--seed attend un nombre")?.parse()?,
             "--glitch" => glitch = Some(args.next().context("--glitch attend un nombre")?.parse()?),
+            "--gif" => gif = Some(args.next().context("--gif attend un fichier")?.into()),
             _ => steps.push(arg),
         }
     }
@@ -78,16 +84,19 @@ fn main() -> Result<()> {
     let mut shots = 0;
     let mut tickets = 0;
     let mut fail_next = false;
-    let mut capture = |app: &App, name: &str| -> Result<()> {
+    // Images de l'animation, avec leur durée d'affichage en millisecondes.
+    let mut frames: Vec<(RgbaImage, u32)> = Vec::new();
+    let mut capture = |app: &App, name: &str, ms: u32, frames: &mut Vec<(RgbaImage, u32)>| -> Result<()> {
         app.draw(&mut frame).expect("dessin en mémoire");
         let path = out.join(format!("{shots:02}-{name}.png"));
-        save_png(&frame, &path)?;
+        to_image(&frame).save(&path).with_context(|| format!("impossible d'écrire {}", path.display()))?;
         eprintln!("{}", path.display());
         shots += 1;
+        frames.push((to_image(&frame), ms));
         Ok(())
     };
 
-    capture(&app, "accueil")?;
+    capture(&app, "accueil", 1500, &mut frames)?;
     for step in &steps {
         let event = match step.split_once(':') {
             Some(("tap", xy)) => {
@@ -101,12 +110,20 @@ fn main() -> Result<()> {
             }
             _ => bail!("étape inconnue « {step} » (tap:X,Y, wait:MS ou fail)"),
         };
+        // Dans l'animation, l'appui est d'abord montré par un cercle sur l'écran courant.
+        if let Event::Tap(p) = event {
+            let mut touched = Framebuffer::new();
+            app.draw(&mut touched).expect("dessin en mémoire");
+            let ring = PrimitiveStyle::with_stroke(Rgb565::new(0x1C, 0x18, 0x01), 4);
+            Circle::with_center(p, 30).into_styled(ring).draw(&mut touched).expect("dessin en mémoire");
+            frames.push((to_image(&touched), 450));
+        }
         let name = step.replace([':', ','], "-");
         match app.handle(event) {
             Effect::None => {}
-            Effect::Redraw => capture(&app, &name)?,
+            Effect::Redraw => capture(&app, &name, 1100, &mut frames)?,
             Effect::Print(printed) => {
-                capture(&app, &format!("{name}-impression"))?;
+                capture(&app, &format!("{name}-impression"), 1600, &mut frames)?;
                 // Un fichier et une ligne par ticket (un glitch peut précéder le ticket demandé).
                 for ticket in printed {
                     tickets += 1;
@@ -117,19 +134,28 @@ fn main() -> Result<()> {
                 }
                 let result = if std::mem::take(&mut fail_next) { Err("imprimante injoignable".to_owned()) } else { Ok(()) };
                 if app.print_finished(result) == Effect::Redraw {
-                    capture(&app, &format!("{name}-fin"))?;
+                    capture(&app, &format!("{name}-fin"), 1600, &mut frames)?;
                 }
             }
         }
     }
+
+    if let Some(path) = gif {
+        let file = std::fs::File::create(&path).with_context(|| format!("impossible d'écrire {}", path.display()))?;
+        let mut encoder = GifEncoder::new_with_speed(file, 10);
+        encoder.set_repeat(Repeat::Infinite)?;
+        let frames = frames.into_iter().map(|(img, ms)| image::Frame::from_parts(img, 0, 0, Delay::from_numer_denom_ms(ms, 1)));
+        encoder.encode_frames(frames)?;
+        eprintln!("{}", path.display());
+    }
     Ok(())
 }
 
-fn save_png(frame: &Framebuffer, path: &PathBuf) -> Result<()> {
-    let mut img = image::RgbImage::new(WIDTH, HEIGHT);
+fn to_image(frame: &Framebuffer) -> RgbaImage {
+    let mut img = RgbaImage::new(WIDTH, HEIGHT);
     for (pixel, &color) in img.pixels_mut().zip(frame.pixels()) {
         let c = Rgb888::from(color);
-        *pixel = image::Rgb([c.r(), c.g(), c.b()]);
+        *pixel = image::Rgba([c.r(), c.g(), c.b(), 255]);
     }
-    img.save(path).with_context(|| format!("impossible d'écrire {}", path.display()))
+    img
 }

@@ -8,4 +8,4 @@ description = "Simulateur de la borne : rend les écrans en PNG et écrit les ti
 anyhow = "1"
 borne-ui = { path = "../ui" }
 embedded-graphics = "0.8"
-image = { version = "0.25", default-features = false, features = ["png"] }
+image = { version = "0.25", default-features = false, features = ["gif", "png"] }

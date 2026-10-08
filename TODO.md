@@ -37,12 +37,18 @@ modèles de tickets) fonctionne ; il reste surtout la carte ESP32.
   code. Le supprimer aussi ?
 - [ ] **Icône « haltere »** : plus utilisée depuis le retrait du défi sportif. La garder pour un
   futur jeu ?
-- [ ] **Longueur des packs** : un pack de 5 jeux fait environ 60 cm de papier. Réduire `count` ?
+- [x] **Longueur des packs** : 4 jeux par pack, sans coloriage ni logimage (environ 50 cm).
 
 ## Vérifications
 
-- [ ] Imprimer sur la vraie imprimante le nouveau logimage (centré, grandes cases) et un ticket
-  de solution demandé depuis la borne.
+- [x] Imprimer sur la vraie imprimante le nouveau logimage (centré, grandes cases), dans un pack.
+- [ ] Imprimer sur la vraie imprimante un ticket de solution demandé depuis la borne, et vérifier
+  qu'il correspond bien à la grille d'origine.
+
+## Documentation
+
+- [ ] Régénérer l'animation du README après chaque changement de l'interface :
+  `cargo run -p borne-sim -- --seed 7 --glitch 0 --gif docs/borne.gif`.
 
 ## Suivi du projet d'origine
 
