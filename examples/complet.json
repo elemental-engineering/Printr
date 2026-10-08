@@ -11,7 +11,6 @@
     { "type": "quote" },
     { "type": "separator", "style": "═" },
     { "type": "enigme" },
-    { "type": "defi_sportif", "level": "moyen" },
     { "type": "sudoku", "difficulty": "moyen" },
     { "type": "mots_meles", "difficulty": "moyen" },
     { "type": "voie_ferree", "difficulty": "moyen" },
@@ -23,7 +22,6 @@
     { "type": "message_code", "message": "Le café est offert par le FabLab", "cipher": "cesar", "shift": 3 },
     { "type": "coloriage" },
     { "type": "todo", "items": ["Changer le rouleau de papier", "Imprimer le boîtier de la borne"] },
-    { "type": "bon", "text": "un café offert", "from": "le FabLab" },
     { "type": "separator", "style": "─" },
     { "type": "text", "text": "Imprimé par printr", "small": true, "align": "center" },
     { "type": "qr", "data": "https://github.com/elemental-engineering/Printr", "size": 4, "caption": "Le projet sur GitHub" }

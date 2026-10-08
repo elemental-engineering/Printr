@@ -5,7 +5,6 @@ pub mod barnum;
 mod bins;
 mod cipher;
 mod coloring;
-mod coupon;
 mod glitch;
 mod holidays;
 mod maze;
@@ -21,7 +20,6 @@ mod sudoku;
 mod train_tracks;
 mod word_search;
 mod wifi;
-mod workout;
 
 use std::panic::AssertUnwindSafe;
 use std::sync::mpsc;
@@ -197,15 +195,6 @@ pub enum Block {
         #[serde(default = "one")]
         count: u8,
     },
-    /// Défi sportif du jour, sans équipement.
-    #[serde(alias = "defi_sportif")]
-    Workout {
-        /// facile, moyen (défaut) ou difficile.
-        #[serde(default)]
-        level: workout::Level,
-        #[serde(default)]
-        number: Option<usize>,
-    },
     /// Énigme du jour (devinette, charade, logique, calcul).
     #[serde(alias = "enigme")]
     Riddle {
@@ -278,21 +267,6 @@ pub enum Block {
         #[serde(default)]
         seed: Option<u64>,
     },
-    /// Bon à offrir.
-    #[serde(alias = "bon")]
-    Coupon {
-        /// « un petit-déjeuner au lit » ; une idée au hasard si absent.
-        #[serde(default)]
-        text: Option<String>,
-        #[serde(default)]
-        from: Option<String>,
-        #[serde(default)]
-        to: Option<String>,
-        #[serde(default)]
-        valid_until: Option<NaiveDate>,
-        #[serde(default = "one")]
-        count: u8,
-    },
     /// QR code de connexion au Wi-Fi.
     Wifi {
         ssid: String,
@@ -352,7 +326,6 @@ impl Block {
             Block::Anagram { .. } => "mot mystère",
             Block::Nonogram { .. } => "logimage",
             Block::Cipher { .. } => "message codé",
-            Block::Coupon { .. } => "bon à offrir",
             Block::Wifi { .. } => "Wi-Fi",
             Block::Bins { .. } => "poubelles",
             Block::Coloring { .. } => "coloriage",
@@ -375,7 +348,6 @@ impl Block {
             Block::Countdown { .. } => "compte à rebours",
             Block::Quote {} => "citation",
             Block::Riddle { .. } => "énigme",
-            Block::Workout { .. } => "défi sportif",
             Block::Picto { .. } => "pictogramme",
             Block::Barnum { .. } => "horoscope Barnum",
         }
@@ -398,11 +370,9 @@ impl Block {
             }
             Block::MentalMath { difficulty, .. } => Some(difficulty.label().to_owned()),
             Block::Cipher { cipher, .. } => Some(cipher.label().to_owned()),
-            Block::Coupon { text, .. } => text.clone(),
             Block::Wifi { ssid, .. } => Some(ssid.clone()),
             Block::Nonogram { number, .. } => number.map(|n| format!("n° {n}")),
             Block::Countdown { label, .. } => Some(label.clone()),
-            Block::Workout { level, .. } => Some(level.label().to_owned()),
             Block::Picto { shape, .. } => Some(shape.label().to_owned()),
             Block::Barnum { sign, birth_date, .. } => {
                 birth_date.map(|d| format!("né le {d}")).or_else(|| sign.clone())
@@ -477,7 +447,6 @@ impl Block {
             }
             Block::Quote {} => doc = quote::build(ctx.today),
             Block::Riddle { kind, number, answer } => doc = riddle::build(ctx.today, *kind, *number, *answer)?,
-            Block::Workout { level, number } => doc = workout::build(ctx.today, *level, *number)?,
             Block::Picto { shape, size, count } => doc = picto::build(*shape, *size, *count),
             Block::Barnum { sign, birth_date, sky, variant } => {
                 let who = match (birth_date, sign) {
@@ -495,16 +464,6 @@ impl Block {
             Block::Nonogram { number, solution } => doc = nonogram::build(*number, *solution)?,
             Block::Cipher { message, cipher: kind, shift, answer, seed } => {
                 doc = cipher::build(message.as_deref(), *kind, *shift, *answer, *seed);
-            }
-            Block::Coupon { text, from, to, valid_until, count } => {
-                let coupon = coupon::Coupon {
-                    text: text.as_deref(),
-                    from: from.as_deref(),
-                    to: to.as_deref(),
-                    valid_until: *valid_until,
-                    count: *count,
-                };
-                doc = coupon::build(&coupon, ctx.today);
             }
             Block::Wifi { ssid, password, security, hidden, show_password } => {
                 doc = wifi::build(ssid, password.as_deref(), *security, *hidden, *show_password)?;

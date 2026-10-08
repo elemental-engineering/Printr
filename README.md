@@ -72,7 +72,6 @@ lieu de bloquer le ticket. Un paramètre inconnu est une erreur, pour repérer l
 | `petit_bac` | `players` (1), `letter`, `count` (6), `categories`, `seed` | Une lettre et des catégories, une feuille par joueur |
 | `cipher` (ou `message_code`) | `message`, `cipher` (`cesar`/`morse`/`nombres`), `shift`, `answer` (true) | Message codé et sa grille de déchiffrement |
 | `coloring` (ou `coloriage`) | `seed` | Mandala à colorier |
-| `workout` (ou `defi_sportif`) | `level` (`facile`/`moyen`/`difficile`), `number` | Défi sportif du jour, sans équipement |
 
 **Numéro de grille et solution.** Les grilles générées (sudoku, mots mêlés, voie ferrée,
 labyrinthe…) portent un numéro en bas à droite : c'est leur graine. Pour imprimer la solution, on
@@ -101,7 +100,6 @@ les mots mêlés), et on ajoute `"solution": true` :
 | `countdown` | `label`, `date` (`AAAA-MM-JJ`) | « J-79 avant : Noël » |
 | `moon` | — | Phase, illumination, prochaines pleine et nouvelle lunes |
 | `todo` | `items`, `title` (« À faire ») | Cases à cocher |
-| `coupon` (ou `bon`) | `text`, `from`, `to`, `valid_until`, `count` (1) | « Bon pour… » avec ligne de découpe |
 | `wifi` | `ssid`, `password`, `security` (`wpa`/`wep`/`none`), `hidden`, `show_password` (true) | QR code qui connecte au réseau |
 | `bins` (ou `poubelles`) | `collections` (`name`, `days`, `every`, `from`), `when` (`veille`/`jour`), `always` | Rappel des jours de ramassage |
 | `barnum` | `sign` ou `birth_date` (`AAAA-MM-JJ`), `sky` (false), `variant` | Horoscope hors ligne calculé par [Barnum](https://github.com/XNinety9/Barnum), à installer à part : `barnum` dans le PATH, ou la commande donnée dans `PRINTR_BARNUM` (par exemple `python3 /opt/barnum/main.py`) |
