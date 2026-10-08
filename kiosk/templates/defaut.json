@@ -1,0 +1,9 @@
+{
+  "cut": true,
+  "spacing": 1,
+  "blocks": [
+    { "type": "title", "text": "FabLab" },
+    { "type": "date" },
+    { "type": "jeu" }
+  ]
+}

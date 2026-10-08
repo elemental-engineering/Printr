@@ -1,0 +1,174 @@
+{
+  "title": "FabLab · Pause jeux",
+  "template": "defaut",
+  "games": [
+    {
+      "title": "Pack pause",
+      "icon": "cafe",
+      "description": "Cinq jeux tirés au hasard, pour toute la pause.",
+      "pack": { "pick": "hasard", "count": 5, "exclude": ["petit-bac"] },
+      "template": "pack"
+    },
+    {
+      "title": "Les plus joués",
+      "icon": "etoile",
+      "description": "Les cinq jeux les plus imprimés sur la borne.",
+      "pack": { "pick": "populaires", "count": 5, "exclude": ["petit-bac"] },
+      "template": "pack"
+    },
+    {
+      "id": "sudoku",
+      "title": "Sudoku",
+      "solution": { "key": "seed" },
+      "icon": "sudoku",
+      "description": "Une grille à solution unique.",
+      "block": { "type": "sudoku", "difficulty": "moyen" },
+      "options": [
+        { "label": "Niveau", "key": "difficulty", "choices": [
+          { "label": "Facile", "value": "facile" },
+          { "label": "Moyen", "value": "moyen" },
+          { "label": "Difficile", "value": "difficile" }
+        ] }
+      ]
+    },
+    {
+      "id": "mots-meles",
+      "title": "Mots mêlés",
+      "solution": { "key": "seed" },
+      "icon": "loupe",
+      "description": "Retrouve les mots cachés dans la grille.",
+      "block": { "type": "mots_meles", "difficulty": "moyen" },
+      "options": [
+        { "label": "Niveau", "key": "difficulty", "choices": [
+          { "label": "Facile", "value": "facile" },
+          { "label": "Moyen", "value": "moyen" },
+          { "label": "Difficile", "value": "difficile" }
+        ] },
+        { "label": "Thème", "key": "theme", "choices": [
+          { "label": "Au hasard", "value": null },
+          { "label": "Animaux", "value": "animaux" },
+          { "label": "Fruits et légumes", "value": "fruits_legumes" },
+          { "label": "Cuisine", "value": "cuisine" },
+          { "label": "Nature", "value": "nature" },
+          { "label": "Sport", "value": "sport" },
+          { "label": "Métiers", "value": "metiers" },
+          { "label": "Maison", "value": "maison" },
+          { "label": "Voyage", "value": "voyage" },
+          { "label": "Musique", "value": "musique" },
+          { "label": "École", "value": "ecole" },
+          { "label": "Développement", "value": "developpement" },
+          { "label": "DevOps", "value": "devops" },
+          { "label": "Réseaux", "value": "reseaux" },
+          { "label": "Intelligence artificielle", "value": "ia" }
+        ] }
+      ]
+    },
+    {
+      "id": "voie-ferree",
+      "title": "Voie ferrée",
+      "solution": { "key": "seed" },
+      "icon": "rails",
+      "description": "Relie A à B par une seule voie.",
+      "block": { "type": "voie_ferree", "difficulty": "moyen" },
+      "options": [
+        { "label": "Niveau", "key": "difficulty", "choices": [
+          { "label": "Facile", "value": "facile" },
+          { "label": "Moyen", "value": "moyen" },
+          { "label": "Difficile", "value": "difficile" }
+        ] }
+      ]
+    },
+    {
+      "id": "logimage",
+      "title": "Logimage",
+      "solution": { "key": "number", "max": 10 },
+      "icon": "coeur",
+      "description": "Noircis les cases pour révéler un dessin.",
+      "block": { "type": "logimage" }
+    },
+    {
+      "id": "labyrinthe",
+      "title": "Labyrinthe",
+      "icon": "labyrinthe",
+      "description": "Entrée en haut, sortie en bas.",
+      "block": { "type": "maze", "width": 12, "height": 16 },
+      "options": [
+        { "label": "Taille", "choices": [
+          { "label": "Petit", "value": { "width": 8, "height": 10 } },
+          { "label": "Moyen", "value": { "width": 12, "height": 16 } },
+          { "label": "Grand", "value": { "width": 16, "height": 24 } }
+        ] }
+      ]
+    },
+    {
+      "id": "enigme",
+      "title": "Énigme",
+      "icon": "question",
+      "description": "La réponse est imprimée à l'envers.",
+      "block": { "type": "enigme" },
+      "options": [
+        { "label": "Famille", "key": "kind", "choices": [
+          { "label": "Toutes", "value": null },
+          { "label": "Devinette", "value": "devinette" },
+          { "label": "Charade", "value": "charade" },
+          { "label": "Logique", "value": "logique" },
+          { "label": "Calcul", "value": "calcul" }
+        ] }
+      ]
+    },
+    {
+      "id": "mot-mystere",
+      "title": "Mot mystère",
+      "icon": "lettre",
+      "description": "Remets les lettres dans l'ordre.",
+      "block": { "type": "mot_mystere" },
+      "options": [
+        { "label": "Thème", "key": "theme", "choices": [
+          { "label": "Au hasard", "value": null },
+          { "label": "Animaux", "value": "animaux" },
+          { "label": "Cuisine", "value": "cuisine" },
+          { "label": "Métiers", "value": "metiers" },
+          { "label": "Développement", "value": "developpement" },
+          { "label": "Réseaux", "value": "reseaux" }
+        ] }
+      ]
+    },
+    {
+      "id": "petit-bac",
+      "title": "Petit bac",
+      "icon": "crayon",
+      "description": "Une lettre, des catégories : à vos stylos !",
+      "block": { "type": "petit_bac", "players": 2 },
+      "options": [
+        { "label": "Joueurs", "key": "players", "choices": [
+          { "label": "1", "value": 1 },
+          { "label": "2", "value": 2 },
+          { "label": "3", "value": 3 },
+          { "label": "4", "value": 4 }
+        ] }
+      ]
+    },
+    {
+      "id": "message-code",
+      "title": "Message codé",
+      "icon": "enveloppe",
+      "description": "Déchiffre le message avec la grille.",
+      "block": { "type": "message_code", "cipher": "cesar" },
+      "options": [
+        { "label": "Code", "key": "cipher", "choices": [
+          { "label": "César", "value": "cesar" },
+          { "label": "Morse", "value": "morse" },
+          { "label": "Nombres", "value": "nombres" }
+        ] }
+      ]
+    },
+    {
+      "id": "coloriage",
+      "title": "Coloriage",
+      "icon": "fleur",
+      "description": "Un mandala différent à chaque fois.",
+      "template": "coloriage",
+      "block": { "type": "coloriage" }
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "cut": true,
+  "blocks": [
+    { "type": "title", "text": "À colorier !" },
+    { "type": "jeu" },
+    { "type": "text", "text": "Affiche ton œuvre au FabLab", "small": true, "align": "center" }
+  ]
+}

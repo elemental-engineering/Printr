@@ -15,3 +15,10 @@ rand = "0.10.3"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 terminal_size = "0.4.4"
+
+[dev-dependencies]
+# Vérifie que les tickets produits par la borne sont valides (voir src/blocks/mod.rs).
+borne-ui = { path = "kiosk/ui" }
+
+[workspace]
+members = ["kiosk/ui", "kiosk/sim"]

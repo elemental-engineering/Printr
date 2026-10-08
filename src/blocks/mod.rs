@@ -593,6 +593,48 @@ mod tests {
         assert!(matches!(t.blocks[1], Block::Riddle { kind: Some(riddle::Kind::Charade), .. }));
     }
 
+    /// Chaque ticket que la borne peut produire (chaque jeu, chaque choix de chaque réglage,
+    /// chaque pack, chaque solution) est un ticket valide, dont tous les blocs s'impriment sans erreur.
+    #[test]
+    fn kiosk_tickets_are_valid() {
+        let config = borne_ui::Config::load(std::path::Path::new("kiosk")).unwrap();
+        let ctx = Ctx { today: NaiveDate::from_ymd_opt(2026, 10, 7).unwrap(), preview: true };
+        let check = |json: serde_json::Value, title: &str| {
+            let text = json.to_string();
+            let ticket: Ticket = serde_json::from_value(json).unwrap_or_else(|e| panic!("« {title} » : {e}\n{text}"));
+            let (_, reports) = ticket.build(&ctx, &mut Silent);
+            let errors: Vec<_> = reports.iter().filter_map(|r| r.error.as_ref()).collect();
+            assert!(errors.is_empty(), "« {title} » : {errors:?}\n{text}");
+        };
+        for (g, game) in config.games.iter().enumerate() {
+            if game.is_pack() {
+                // Le pack avec tous les jeux qu'il peut tirer.
+                check(config.pack_ticket(g, &config.pack_pool(g)), &game.title);
+                continue;
+            }
+            let default = config.default_selection(g);
+            let mut selections = vec![default.clone()];
+            for (o, option) in game.options.iter().enumerate() {
+                for c in 0..option.choices.len() {
+                    let mut selection = default.clone();
+                    selection[o] = c;
+                    selections.push(selection);
+                }
+            }
+            for selection in &selections {
+                check(config.ticket(g, selection), &game.title);
+            }
+            // Solution : le plus petit et le plus grand numéro acceptés, pour chaque réglage.
+            if let Some(solution) = &game.solution {
+                for number in [1, solution.max.unwrap_or(99_999)] {
+                    for selection in &selections {
+                        check(config.solution_ticket(g, selection, number), &game.title);
+                    }
+                }
+            }
+        }
+    }
+
     #[test]
     fn rejects_unknown_fields_and_types() {
         assert!(serde_json::from_str::<Ticket>(r#"{"blocks": [{"type": "saint", "oups": 1}]}"#).is_err());

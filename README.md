@@ -117,6 +117,126 @@ n'apparaît jamais dans les aperçus.
 - [`docs/exemples/`](docs/exemples/) : un exemple par bloc, avec son rendu PNG, régénéré par
   `docs/exemples/generer.sh [bloc…]`.
 
+## Borne tactile
+
+L'interface de la borne vit dans [`kiosk/`](kiosk/), pour un écran tactile de 480 × 272 (carte
+ESP32-S3 de 4,3″ visée) :
+
+- [`kiosk/games.json`](kiosk/games.json) décrit la borne : son titre, son modèle de ticket par
+  défaut, et la liste des jeux. Chaque jeu a un titre, une icône, une description, ses
+  paramètres par défaut (`block`, au format des tickets ci-dessus) et les réglages proposés à
+  l'écran (`options`). Ajouter un jeu ne demande qu'une entrée dans ce fichier.
+- [`kiosk/templates/`](kiosk/templates/) contient les modèles de tickets : ce qui est imprimé
+  autour du jeu choisi (voir ci-dessous).
+- `kiosk/ui` (crate `borne-ui`) : les écrans (accueil, réglages, impression), dessinés avec
+  [embedded-graphics](https://docs.rs/embedded-graphics), sans dépendance au matériel.
+- `kiosk/sim` (crate `borne-sim`) : un simulateur qui joue des appuis, enregistre chaque écran en
+  PNG dans `kiosk/captures/` et écrit les tickets produits.
+
+```sh
+cargo run -p borne-sim                                            # visite guidée en captures
+cargo run -p borne-sim -- tap:299,97 tap:364,238 | cargo run -- --preview print
+```
+
+Un jeu dans `games.json` :
+
+```json
+{
+  "title": "Sudoku",
+  "icon": "sudoku",
+  "description": "Une grille à solution unique.",
+  "block": { "type": "sudoku", "difficulty": "moyen" },
+  "options": [
+    { "label": "Niveau", "key": "difficulty", "choices": [
+      { "label": "Facile", "value": "facile" },
+      { "label": "Moyen", "value": "moyen" },
+      { "label": "Difficile", "value": "difficile" }
+    ] }
+  ]
+}
+```
+
+- `icon` : une icône intégrée (`sudoku`, `loupe`, `rails`, `labyrinthe`, `coeur`, `question`,
+  `calcul`, `lettre`, `crayon`, `enveloppe`, `fleur`, `haltere`, `etoile`, `cafe`), ou un dessin en lignes
+  de `#` et de `.` (32 × 32 au plus).
+- `options` : chaque choix donne la valeur du paramètre `key` ; `null` retire le paramètre (Printr
+  choisit alors au hasard). Sans `key`, chaque valeur est un objet fusionné dans le bloc, par
+  exemple `{ "width": 8, "height": 10 }` pour un petit labyrinthe.
+- Jusqu'à quatre choix, ils s'affichent côte à côte ; au-delà, avec des flèches.
+- `solution` : ajoute un bouton « Solution » en bas à gauche de l'écran du jeu. On y tape le
+  numéro imprimé sur la grille, et la borne imprime la solution avec les réglages choisis à
+  l'écran (qui doivent être ceux du ticket). `key` est le paramètre qui reçoit le numéro (`seed`
+  pour les grilles générées, `number` pour les logimages), `max` le plus grand numéro accepté, et
+  `set` ce qui est ajouté au bloc (`{"solution": true}` par défaut) :
+  `"solution": { "key": "number", "max": 10 }`.
+
+### Packs de jeux
+
+Une entrée avec `pack` à la place de `block` imprime plusieurs jeux sur le même ticket, chacun avec
+ses réglages par défaut. Les jeux y sont désignés par leur `id` :
+
+```json
+{
+  "title": "Pack pause",
+  "icon": "cafe",
+  "description": "Cinq jeux tirés au hasard, pour toute la pause.",
+  "pack": { "pick": "hasard", "count": 5 },
+  "template": "pack"
+}
+```
+
+| `pick` | Jeux du pack |
+| --- | --- |
+| `tous` (défaut) | Tous ceux de `games`, dans l'ordre |
+| `hasard` | `count` jeux (5 par défaut) tirés au hasard, différents à chaque ticket |
+| `populaires` | Les `count` jeux les plus imprimés sur la borne (à égalité, l'ordre de `games.json`) |
+
+`games` limite le choix à une liste d'`id` (`"games": ["sudoku", "mots-meles", "voie-ferree"]`) ;
+vide, tous les jeux de la borne sont candidats. `exclude` en écarte certains
+(`"exclude": ["petit-bac"]`). Un pack s'affiche en tuile orangée et liste son
+contenu à l'écran. La borne compte les impressions de chaque jeu ; l'appareil peut sauvegarder ce
+décompte (`App::popularity`) et le reprendre au démarrage (`App::set_popularity`).
+
+### Modèles de tickets
+
+Un modèle est un ticket au format habituel (comme ceux de [`examples/`](examples/)), où le bloc
+`{ "type": "jeu" }` marque la place du jeu choisi, avec ses réglages. Par exemple
+[`kiosk/templates/defaut.json`](kiosk/templates/defaut.json) :
+
+```json
+{
+  "cut": true,
+  "spacing": 1,
+  "blocks": [
+    { "type": "title", "text": "FabLab" },
+    { "type": "date" },
+    { "type": "jeu" },
+    { "type": "separator", "style": "─" },
+    { "type": "text", "text": "Bonne pause !", "small": true, "align": "center" }
+  ]
+}
+```
+
+- Le modèle utilisé par défaut est donné par `"template"` dans `games.json` (`defaut` si absent) ;
+  un jeu peut en choisir un autre avec son propre `"template"`, par exemple
+  `"template": "coloriage"` pour `kiosk/templates/coloriage.json`.
+- Le nom d'un modèle est celui de son fichier, sans `.json`. Chaque modèle contient un et un
+  seul bloc `jeu`.
+- Pour un pack, le bloc `jeu` reçoit tous ses jeux, à la suite. `entre` donne les blocs à
+  imprimer entre deux jeux, par exemple dans
+  [`kiosk/templates/pack.json`](kiosk/templates/pack.json) :
+  `{ "type": "jeu", "entre": [{ "type": "separator", "style": "═" }] }`.
+- Pour voir le ticket complet d'un jeu : `cargo run -p borne-sim -- tap:299,97 tap:364,238 |
+  cargo run -- --preview print`.
+
+Une impression sur 100 000 (0,001 %) depuis la borne est précédée d'un
+[glitch](#mise-en-page-et-autres-blocs), seul sur son propre ticket, coupé, avant le ticket
+demandé (`App::set_glitch_odds` pour changer la fréquence, `0` pour jamais). La borne demande
+alors deux impressions à la suite ; le simulateur écrit un fichier et une ligne par ticket.
+
+`cargo test` vérifie que chaque ticket que la borne peut produire (chaque jeu, chaque réglage,
+dans son modèle) est valide et s'imprime sans erreur.
+
 ## Tester sans imprimante (émulateur)
 
 [emupos](https://pypi.org/project/emupos/) simule l'imprimante et rend chaque ticket en PNG + texte.

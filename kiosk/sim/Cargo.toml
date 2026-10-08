@@ -1,0 +1,11 @@
+[package]
+name = "borne-sim"
+version = "0.1.0"
+edition = "2024"
+description = "Simulateur de la borne : rend les écrans en PNG et écrit les tickets produits"
+
+[dependencies]
+anyhow = "1"
+borne-ui = { path = "../ui" }
+embedded-graphics = "0.8"
+image = { version = "0.25", default-features = false, features = ["png"] }

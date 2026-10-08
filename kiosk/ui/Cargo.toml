@@ -1,0 +1,10 @@
+[package]
+name = "borne-ui"
+version = "0.1.0"
+edition = "2024"
+description = "Interface tactile de la borne de jeux : écrans, icônes et tickets, sans dépendance au matériel"
+
+[dependencies]
+embedded-graphics = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
