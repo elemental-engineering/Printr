@@ -327,11 +327,12 @@ pub fn build(
     let puzzle = generate(seed, difficulty, &candidates, count);
 
     let mut doc = Doc::new();
+    // La difficulté dans le bandeau, comme les autres jeux : il la faut pour imprimer la solution.
     let title = if solution { "Solution des mots mêlés" } else { "Mots mêlés" };
-    match subject {
-        Some(subject) if !solution => doc.header(&format!("{title} · {subject}")),
-        _ => doc.header(title),
-    };
+    doc.header(&format!("{title} · {}", difficulty.label()));
+    if let Some(subject) = subject {
+        doc.text(&format!("Thème : {subject}"), Style::default().small().center());
+    }
     doc.text(hint(difficulty), Style::default().small().center());
     doc.feed(1);
     doc.image(render(&puzzle, solution));
